@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"github.com/stretchr/testify/require"
 	"testing"
 
 	schemaV1 "buf.build/gen/go/open-feature/flagd/protocolbuffers/go/schema/v1"
@@ -13,6 +12,7 @@ import (
 	mock "github.com/open-feature/flagd/core/pkg/eval/mock"
 	"github.com/open-feature/flagd/core/pkg/logger"
 	"github.com/open-feature/flagd/core/pkg/model"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 

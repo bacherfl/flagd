@@ -2,9 +2,9 @@ package otel
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/metric"
 	semconv "go.opentelemetry.io/otel/semconv/v1.13.0"
