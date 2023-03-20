@@ -1,7 +1,8 @@
-package service
+package middleware
 
 import (
 	"context"
+	"github.com/open-feature/flagd/core/pkg/otel"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -9,88 +10,18 @@ import (
 	"testing"
 
 	"github.com/open-feature/flagd/core/pkg/logger"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/metric"
-	semconv "go.opentelemetry.io/otel/semconv/v1.13.0"
 	"go.uber.org/zap/zapcore"
 )
 
-func TestSetAttributes(t *testing.T) {
-	tests := []struct {
-		name string
-		req  HTTPReqProperties
-		want []attribute.KeyValue
-	}{
-		{
-			name: "empty attributes",
-			req: HTTPReqProperties{
-				Service: "",
-				ID:      "",
-				Method:  "",
-				Code:    "",
-			},
-			want: []attribute.KeyValue{
-				semconv.ServiceNameKey.String(""),
-				semconv.HTTPURLKey.String(""),
-				semconv.HTTPMethodKey.String(""),
-				semconv.HTTPStatusCodeKey.String(""),
-			},
-		},
-		{
-			name: "some values",
-			req: HTTPReqProperties{
-				Service: "myService",
-				ID:      "#123",
-				Method:  "POST",
-				Code:    "300",
-			},
-			want: []attribute.KeyValue{
-				semconv.ServiceNameKey.String("myService"),
-				semconv.HTTPURLKey.String("#123"),
-				semconv.HTTPMethodKey.String("POST"),
-				semconv.HTTPStatusCodeKey.String("300"),
-			},
-		},
-		{
-			name: "special chars",
-			req: HTTPReqProperties{
-				Service: "!@#$%^&*()_+|}{[];',./<>",
-				ID:      "",
-				Method:  "",
-				Code:    "",
-			},
-			want: []attribute.KeyValue{
-				semconv.ServiceNameKey.String("!@#$%^&*()_+|}{[];',./<>"),
-				semconv.HTTPURLKey.String(""),
-				semconv.HTTPMethodKey.String(""),
-				semconv.HTTPStatusCodeKey.String(""),
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			rec := OTelMetricsRecorder{}
-			res := rec.setAttributes(tt.req)
-			if len(res) != 4 {
-				t.Errorf("OTelMetricsRecorder.setAttributes() must provide 4 attributes")
-			}
-			for i := 0; i < 4; i++ {
-				if !reflect.DeepEqual(res[i], tt.want[i]) {
-					t.Errorf("attribute %d = %v, want %v", i, res[i], tt.want[i])
-				}
-			}
-		})
-	}
-}
-
-func TestMiddleware(t *testing.T) {
+func TestMiddlewareExposesMetrics(t *testing.T) {
 	const svcName = "mySvc"
 	exp := metric.NewManualReader()
 	l, _ := logger.NewZapLogger(zapcore.DebugLevel, "")
-	m := New(middlewareConfig{
-		MetricReader: exp,
-		Service:      svcName,
-		Logger:       logger.NewLogger(l, true),
+	m := NewHttpMetric(Config{
+		MetricRecorder: otel.NewOTelRecorder(exp, svcName),
+		Service:        svcName,
+		Logger:         logger.NewLogger(l, true),
 	})
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("answer"))
@@ -118,18 +49,173 @@ func TestMiddleware(t *testing.T) {
 	}
 }
 
-func TestNew_AutowireOTel(t *testing.T) {
+func TestMeasure(t *testing.T) {
+	exp := metric.NewManualReader()
+	l, _ := logger.NewZapLogger(zapcore.DebugLevel, "")
+
+	next := func() {}
+	ctx := context.TODO()
+	type expected struct {
+		urlCalled    bool
+		methodCalled bool
+		statusCalled bool
+		bytesCalled  bool
+	}
+	tests := []struct {
+		name        string
+		rep         MockReporter
+		id          string
+		groupStatus bool
+		measureSize bool
+		exp         expected
+	}{
+		{
+			name: "empty id",
+			id:   "",
+			rep: MockReporter{
+				Url:    "myURL",
+				Meth:   "GET",
+				Status: 100,
+				Bytes:  0,
+			},
+			groupStatus: true,
+			measureSize: true,
+			exp: expected{
+				urlCalled:    true,
+				methodCalled: true,
+				statusCalled: true,
+				bytesCalled:  true,
+			},
+		},
+		{
+			name: "id provided",
+			id:   "mySpecialHandler",
+			rep: MockReporter{
+				Url:    "myURL",
+				Meth:   "GET",
+				Status: 100,
+				Bytes:  0,
+			},
+			groupStatus: true,
+			measureSize: true,
+			exp: expected{
+				urlCalled:    false,
+				methodCalled: true,
+				statusCalled: true,
+				bytesCalled:  true,
+			},
+		},
+		{
+			name: "id provided - no report of size",
+			id:   "mySpecialHandler",
+			rep: MockReporter{
+				Url:    "myURL",
+				Meth:   "GET",
+				Status: 100,
+				Bytes:  0,
+			},
+			groupStatus: true,
+			measureSize: false,
+			exp: expected{
+				urlCalled:    false,
+				methodCalled: true,
+				statusCalled: true,
+				bytesCalled:  false,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// test the middleware correctly
+			rep := tt.rep
+			m := NewHttpMetric(Config{
+				MetricRecorder:     otel.NewOTelRecorder(exp, tt.name),
+				Service:            tt.name,
+				Logger:             logger.NewLogger(l, true),
+				GroupedStatus:      tt.groupStatus,
+				DisableMeasureSize: !tt.measureSize,
+			})
+			m.Measure(ctx, tt.id, &rep, next)
+			if rep.urlCalled != tt.exp.urlCalled {
+				t.Errorf("Expected %v for URLPath but got %v", tt.exp.urlCalled, rep.urlCalled)
+			}
+			if rep.methodCalled != tt.exp.methodCalled {
+				t.Errorf("Expected %v for Method but got %v", tt.exp.methodCalled, rep.methodCalled)
+			}
+			if rep.statusCalled != tt.exp.statusCalled {
+				t.Errorf("Expected %v for StatusCode but got %v", tt.exp.statusCalled, rep.statusCalled)
+			}
+			if rep.bytesCalled != tt.exp.bytesCalled {
+				t.Errorf("Expected %v for BytesWritten but got %v", tt.exp.bytesCalled, rep.bytesCalled)
+			}
+		})
+	}
+}
+
+type MockReporter struct {
+	Url          string
+	Meth         string
+	Status       int
+	Bytes        int64
+	urlCalled    bool
+	methodCalled bool
+	statusCalled bool
+	bytesCalled  bool
+}
+
+func (m *MockReporter) Method() string {
+	m.methodCalled = true
+	return m.Meth
+}
+
+func (m *MockReporter) URLPath() string {
+	m.urlCalled = true
+	return m.Url
+}
+
+func (m *MockReporter) StatusCode() int {
+	m.statusCalled = true
+	return m.Status
+}
+
+func (m *MockReporter) BytesWritten() int64 {
+	m.bytesCalled = true
+	return m.Bytes
+}
+
+func (m *MockReporter) UrlCalled() bool    { return m.urlCalled }
+func (m *MockReporter) MethodCalled() bool { return m.methodCalled }
+func (m *MockReporter) StatusCalled() bool { return m.statusCalled }
+func (m *MockReporter) BytesCalled() bool  { return m.bytesCalled }
+
+func TestNewHttpMetric(t *testing.T) {
 	l, _ := logger.NewZapLogger(zapcore.DebugLevel, "")
 	log := logger.NewLogger(l, true)
 	exp := metric.NewManualReader()
-	mdw := New(middlewareConfig{
-		MetricReader:       exp,
+	const svcName = "mySvc"
+	const groupedStatus = false
+	const disableMeasureSize = false
+
+	mdw := NewHttpMetric(Config{
+		MetricRecorder:     otel.NewOTelRecorder(exp, svcName),
 		Logger:             log,
-		Service:            "mySvc",
-		GroupedStatus:      false,
-		DisableMeasureSize: false,
+		Service:            svcName,
+		GroupedStatus:      groupedStatus,
+		DisableMeasureSize: disableMeasureSize,
 	})
-	if mdw.cfg.recorder == nil {
+	if mdw.cfg.MetricRecorder == nil {
 		t.Errorf("Expected OpenTelemetry to be configured, got nil")
+	}
+	if mdw.cfg.Logger == nil {
+		t.Errorf("Expected Logger to be configured, got nil")
+	}
+	if mdw.cfg.Service != svcName {
+		t.Errorf("Expected Service to be configured with %s, got %s", svcName, mdw.cfg.Service)
+	}
+	if mdw.cfg.GroupedStatus != groupedStatus {
+		t.Errorf("Expected GroupedStatus to be configured with %v, got %v", groupedStatus, mdw.cfg.GroupedStatus)
+	}
+	if mdw.cfg.DisableMeasureSize != disableMeasureSize {
+		t.Errorf("Expected DisableMeasureSize to be configured with %v, got %v", disableMeasureSize, mdw.cfg.DisableMeasureSize)
 	}
 }
