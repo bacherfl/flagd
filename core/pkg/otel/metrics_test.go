@@ -2,11 +2,12 @@ package otel
 
 import (
 	"context"
+	"reflect"
+	"testing"
+
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/metric"
 	semconv "go.opentelemetry.io/otel/semconv/v1.13.0"
-	"reflect"
-	"testing"
 )
 
 const svcName = "mySvc"
@@ -73,7 +74,7 @@ func TestHTTPAttributes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rec := MetricsRecorder{}
-			res := rec.HttpAttributes(tt.req.Service, tt.req.ID, tt.req.Method, tt.req.Code)
+			res := rec.HTTPAttributes(tt.req.Service, tt.req.ID, tt.req.Method, tt.req.Code)
 			if len(res) != 4 {
 				t.Errorf("OTelMetricsRecorder.setAttributes() must provide 4 attributes")
 			}
@@ -101,9 +102,6 @@ func TestNewOTelRecorder(t *testing.T) {
 	if rec.httpRequestsInflight == nil {
 		t.Errorf("Expected httpRequestsInflight to be created")
 	}
-	if rec.impressions == nil {
-		t.Errorf("Expected impressions to be created")
-	}
 }
 
 func TestMetrics(t *testing.T) {
@@ -120,18 +118,18 @@ func TestMetrics(t *testing.T) {
 		metricFunc MetricF
 	}{
 		{
-			name: "HttpRequestDuration",
+			name: "HTTPRequestDuration",
 			metricFunc: func() {
 				for i := 0; i < n; i++ {
-					rec.HttpRequestDuration(ctx, 10, attrs)
+					rec.HTTPRequestDuration(ctx, 10, attrs)
 				}
 			},
 		},
 		{
-			name: "HttpResponseSize",
+			name: "HTTPResponseSize",
 			metricFunc: func() {
 				for i := 0; i < n; i++ {
-					rec.HttpResponseSize(ctx, 100, attrs)
+					rec.HTTPResponseSize(ctx, 100, attrs)
 				}
 			},
 		},
@@ -141,14 +139,6 @@ func TestMetrics(t *testing.T) {
 				for i := 0; i < n; i++ {
 					rec.InFlightRequestStart(ctx, attrs)
 					rec.InFlightRequestEnd(ctx, attrs)
-				}
-			},
-		},
-		{
-			name: "Impressions",
-			metricFunc: func() {
-				for i := 0; i < n; i++ {
-					rec.Impressions(ctx, "a", "b")
 				}
 			},
 		},

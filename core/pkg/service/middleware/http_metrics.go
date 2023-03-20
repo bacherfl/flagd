@@ -63,7 +63,7 @@ func (m Middleware) Measure(ctx context.Context, handlerID string, reporter Repo
 		code = strconv.Itoa(reporter.StatusCode())
 	}
 
-	httpAttrs := m.cfg.MetricRecorder.HttpAttributes(
+	httpAttrs := m.cfg.MetricRecorder.HTTPAttributes(
 		m.cfg.Service,
 		hid,
 		reporter.Method(),
@@ -78,11 +78,11 @@ func (m Middleware) Measure(ctx context.Context, handlerID string, reporter Repo
 	defer func() {
 		duration := time.Since(start)
 
-		m.cfg.MetricRecorder.HttpRequestDuration(ctx, duration, httpAttrs)
+		m.cfg.MetricRecorder.HTTPRequestDuration(ctx, duration, httpAttrs)
 
 		// Measure size of response if required.
 		if !m.cfg.DisableMeasureSize {
-			m.cfg.MetricRecorder.HttpResponseSize(ctx, reporter.BytesWritten(), httpAttrs)
+			m.cfg.MetricRecorder.HTTPResponseSize(ctx, reporter.BytesWritten(), httpAttrs)
 		}
 	}()
 

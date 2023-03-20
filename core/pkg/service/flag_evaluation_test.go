@@ -1,9 +1,12 @@
 package service
 
 import (
-	schemaV1 "buf.build/gen/go/open-feature/flagd/protocolbuffers/go/schema/v1"
 	"context"
 	"errors"
+	"reflect"
+	"testing"
+	
+	schemaV1 "buf.build/gen/go/open-feature/flagd/protocolbuffers/go/schema/v1"
 	"github.com/bufbuild/connect-go"
 	"github.com/golang/mock/gomock"
 	"github.com/open-feature/flagd/core/pkg/eval"
@@ -11,8 +14,6 @@ import (
 	"github.com/open-feature/flagd/core/pkg/logger"
 	"github.com/open-feature/flagd/core/pkg/model"
 	"google.golang.org/protobuf/types/known/structpb"
-	"reflect"
-	"testing"
 )
 
 func TestConnectService_ResolveAll(t *testing.T) {

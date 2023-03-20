@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"context"
-	"github.com/open-feature/flagd/core/pkg/otel"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/open-feature/flagd/core/pkg/logger"
+	"github.com/open-feature/flagd/core/pkg/otel"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.uber.org/zap/zapcore"
 )
@@ -73,7 +73,7 @@ func TestMeasure(t *testing.T) {
 			name: "empty id",
 			id:   "",
 			rep: MockReporter{
-				Url:    "myURL",
+				URL:    "myURL",
 				Meth:   "GET",
 				Status: 100,
 				Bytes:  0,
@@ -91,7 +91,7 @@ func TestMeasure(t *testing.T) {
 			name: "id provided",
 			id:   "mySpecialHandler",
 			rep: MockReporter{
-				Url:    "myURL",
+				URL:    "myURL",
 				Meth:   "GET",
 				Status: 100,
 				Bytes:  0,
@@ -109,7 +109,7 @@ func TestMeasure(t *testing.T) {
 			name: "id provided - no report of size",
 			id:   "mySpecialHandler",
 			rep: MockReporter{
-				Url:    "myURL",
+				URL:    "myURL",
 				Meth:   "GET",
 				Status: 100,
 				Bytes:  0,
@@ -153,7 +153,7 @@ func TestMeasure(t *testing.T) {
 }
 
 type MockReporter struct {
-	Url          string
+	URL          string
 	Meth         string
 	Status       int
 	Bytes        int64
@@ -170,7 +170,7 @@ func (m *MockReporter) Method() string {
 
 func (m *MockReporter) URLPath() string {
 	m.urlCalled = true
-	return m.Url
+	return m.URL
 }
 
 func (m *MockReporter) StatusCode() int {
@@ -183,7 +183,7 @@ func (m *MockReporter) BytesWritten() int64 {
 	return m.Bytes
 }
 
-func (m *MockReporter) UrlCalled() bool    { return m.urlCalled }
+func (m *MockReporter) URLCalled() bool    { return m.urlCalled }
 func (m *MockReporter) MethodCalled() bool { return m.methodCalled }
 func (m *MockReporter) StatusCalled() bool { return m.statusCalled }
 func (m *MockReporter) BytesCalled() bool  { return m.bytesCalled }

@@ -1,9 +1,12 @@
 package service
 
 import (
-	schemaV1 "buf.build/gen/go/open-feature/flagd/protocolbuffers/go/schema/v1"
 	"context"
 	"fmt"
+	"sync"
+	"time"
+
+	schemaV1 "buf.build/gen/go/open-feature/flagd/protocolbuffers/go/schema/v1"
 	"github.com/bufbuild/connect-go"
 	"github.com/open-feature/flagd/core/pkg/eval"
 	"github.com/open-feature/flagd/core/pkg/logger"
@@ -12,8 +15,6 @@ import (
 	"github.com/rs/xid"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/structpb"
-	"sync"
-	"time"
 )
 
 type FlagEvaluationService struct {
@@ -162,11 +163,6 @@ func resolve[T constraints](
 		reason = model.ErrorReason
 		evalErr = errFormat(evalErr)
 	}
-	defer func() {
-		if metrics != nil {
-			metrics.Impressions(goCtx, flagKey, variant)
-		}
-	}()
 
 	if err := resp.SetResult(result, variant, reason); err != nil && evalErr == nil {
 		logger.ErrorWithID(reqID, err.Error())
