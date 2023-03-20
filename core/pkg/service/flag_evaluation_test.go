@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 	"errors"
-	"reflect"
+	"github.com/stretchr/testify/require"
 	"testing"
-	
+
 	schemaV1 "buf.build/gen/go/open-feature/flagd/protocolbuffers/go/schema/v1"
 	"github.com/bufbuild/connect-go"
 	"github.com/golang/mock/gomock"
@@ -97,19 +97,13 @@ func TestConnectService_ResolveAll(t *testing.T) {
 				switch v := flag.Value.(type) {
 				case bool:
 					val := got.Msg.Flags[flag.FlagKey].Value.(*schemaV1.AnyFlag_BoolValue)
-					if v != val.BoolValue {
-						t.Errorf("Flag_Evaluation.ResolveAll(), key %s = %v, want %v", flag.FlagKey, val.BoolValue, v)
-					}
+					require.Equal(t, v, val.BoolValue)
 				case string:
 					val := got.Msg.Flags[flag.FlagKey].Value.(*schemaV1.AnyFlag_StringValue)
-					if v != val.StringValue {
-						t.Errorf("Flag_Evaluation.ResolveAll(), key %s = %s, want %s", flag.FlagKey, val.StringValue, v)
-					}
+					require.Equal(t, v, val.StringValue)
 				case float64:
 					val := got.Msg.Flags[flag.FlagKey].Value.(*schemaV1.AnyFlag_DoubleValue)
-					if v != val.DoubleValue {
-						t.Errorf("Flag_Evaluation.ResolveAll(), key %s = %f, want %f", flag.FlagKey, val.DoubleValue, v)
-					}
+					require.Equal(t, v, val.DoubleValue)
 				}
 			}
 		})
@@ -191,13 +185,11 @@ func TestFlag_Evaluation_ResolveBoolean(t *testing.T) {
 				nil,
 			)
 			got, err := s.ResolveBoolean(tt.functionArgs.ctx, connect.NewRequest(tt.functionArgs.req))
-			if err != nil && !errors.Is(err, tt.wantErr) {
+			if (err != nil) && !errors.Is(err, tt.wantErr) {
 				t.Errorf("Flag_Evaluation.ResolveBoolean() error = %v, wantErr %v", err.Error(), tt.wantErr.Error())
 				return
 			}
-			if !reflect.DeepEqual(got.Msg, tt.want) {
-				t.Errorf("Flag_Evaluation.ResolveBoolean() = %v, want %v", got, tt.want)
-			}
+			require.Equal(t, tt.want, got.Msg)
 		})
 	}
 }
@@ -246,9 +238,7 @@ func BenchmarkFlag_Evaluation_ResolveBoolean(b *testing.B) {
 					b.Errorf("Flag_Evaluation.ResolveBoolean() error = %v, wantErr %v", err, tt.wantErr)
 					return
 				}
-				if !reflect.DeepEqual(got.Msg, tt.want) {
-					b.Errorf("Flag_Evaluation.ResolveBoolean() = %v, want %v", got, tt.want)
-				}
+				require.Equal(b, tt.want, got.Msg)
 			}
 		})
 	}
@@ -333,9 +323,7 @@ func TestFlag_Evaluation_ResolveString(t *testing.T) {
 				t.Errorf("Flag_Evaluation.ResolveString() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got.Msg, tt.want) {
-				t.Errorf("Flag_Evaluation.ResolveString() = %v, want %v", got, tt.want)
-			}
+			require.Equal(t, tt.want, got.Msg)
 		})
 	}
 }
@@ -385,9 +373,7 @@ func BenchmarkFlag_Evaluation_ResolveString(b *testing.B) {
 					b.Errorf("Flag_Evaluation.ResolveString() error = %v, wantErr %v", err, tt.wantErr)
 					return
 				}
-				if !reflect.DeepEqual(got.Msg, tt.want) {
-					b.Errorf("Flag_Evaluation.ResolveString() = %v, want %v", got, tt.want)
-				}
+				require.Equal(b, tt.want, got.Msg)
 			}
 		})
 	}
@@ -472,9 +458,7 @@ func TestFlag_Evaluation_ResolveFloat(t *testing.T) {
 				t.Errorf("Flag_Evaluation.ResolveNumber() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got.Msg, tt.want) {
-				t.Errorf("Flag_Evaluation.ResolveNumber() = %v, want %v", got, tt.want)
-			}
+			require.Equal(t, tt.want, got.Msg)
 		})
 	}
 }
@@ -524,9 +508,7 @@ func BenchmarkFlag_Evaluation_ResolveFloat(b *testing.B) {
 					b.Errorf("Flag_Evaluation.ResolveNumber() error = %v, wantErr %v", err, tt.wantErr)
 					return
 				}
-				if !reflect.DeepEqual(got.Msg, tt.want) {
-					b.Errorf("Flag_Evaluation.ResolveNumber() = %v, want %v", got, tt.want)
-				}
+				require.Equal(b, tt.want, got.Msg)
 			}
 		})
 	}
@@ -611,9 +593,7 @@ func TestFlag_Evaluation_ResolveInt(t *testing.T) {
 				t.Errorf("Flag_Evaluation.ResolveNumber() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got.Msg, tt.want) {
-				t.Errorf("Flag_Evaluation.ResolveNumber() = %v, want %v", got, tt.want)
-			}
+			require.Equal(t, tt.want, got.Msg)
 		})
 	}
 }
@@ -663,9 +643,7 @@ func BenchmarkFlag_Evaluation_ResolveInt(b *testing.B) {
 					b.Errorf("Flag_Evaluation.ResolveNumber() error = %v, wantErr %v", err, tt.wantErr)
 					return
 				}
-				if !reflect.DeepEqual(got.Msg, tt.want) {
-					b.Errorf("Flag_Evaluation.ResolveNumber() = %v, want %v", got, tt.want)
-				}
+				require.Equal(b, tt.want, got.Msg)
 			}
 		})
 	}
@@ -759,9 +737,7 @@ func TestFlag_Evaluation_ResolveObject(t *testing.T) {
 				t.Errorf("Flag_Evaluation.ResolveObject() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got.Msg.Value.AsMap(), tt.want.Value.AsMap()) {
-				t.Errorf("Flag_Evaluation.ResolveObject() = %v, want %v", got, tt.want)
-			}
+			require.Equal(t, tt.want, got.Msg)
 		})
 	}
 }
@@ -820,9 +796,7 @@ func BenchmarkFlag_Evaluation_ResolveObject(b *testing.B) {
 					b.Errorf("Flag_Evaluation.ResolveObject() error = %v, wantErr %v", err, tt.wantErr)
 					return
 				}
-				if !reflect.DeepEqual(got.Msg.Value.AsMap(), tt.want.Value.AsMap()) {
-					b.Errorf("Flag_Evaluation.ResolveObject() = %v, want %v", got, tt.want)
-				}
+				require.Equal(b, tt.want, got.Msg)
 			}
 		})
 	}

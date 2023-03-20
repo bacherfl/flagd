@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"os"
-	"reflect"
 	"testing"
 	"time"
 
@@ -111,15 +111,9 @@ func TestConnectService_UnixConnection(t *testing.T) {
 			if (err != nil) && !errors.Is(err, tt.wantErr) {
 				t.Errorf("ConnectService.ResolveBoolean() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if !reflect.DeepEqual(res.Reason, tt.want.Reason) {
-				t.Errorf("ConnectService.ResolveBoolean() = %v, want %v", res, tt.want)
-			}
-			if !reflect.DeepEqual(res.Value, tt.want.Value) {
-				t.Errorf("ConnectService.ResolveBoolean() = %v, want %v", res, tt.want)
-			}
-			if !reflect.DeepEqual(res.Variant, tt.want.Variant) {
-				t.Errorf("ConnectService.ResolveBoolean() = %v, want %v", res, tt.want)
-			}
+			require.Equal(t, tt.want.Reason, res.Reason)
+			require.Equal(t, tt.want.Value, res.Value)
+			require.Equal(t, tt.want.Variant, res.Variant)
 		})
 	}
 }
