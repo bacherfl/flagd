@@ -163,7 +163,9 @@ func resolve[T constraints](
 		evalErr = errFormat(evalErr)
 	}
 	defer func() {
-		metrics.Impressions(goCtx, flagKey, variant)
+		if metrics != nil {
+			metrics.Impressions(goCtx, flagKey, variant)
+		}
 	}()
 
 	if err := resp.SetResult(result, variant, reason); err != nil && evalErr == nil {

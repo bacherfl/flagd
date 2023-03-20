@@ -1,123 +1,19 @@
-package service_test
+package service
 
 import (
+	schemaV1 "buf.build/gen/go/open-feature/flagd/protocolbuffers/go/schema/v1"
 	"context"
 	"errors"
-	"fmt"
-	"reflect"
-	"testing"
-	"time"
-
-	schemaGrpcV1 "buf.build/gen/go/open-feature/flagd/grpc/go/schema/v1/schemav1grpc"
-	schemaV1 "buf.build/gen/go/open-feature/flagd/protocolbuffers/go/schema/v1"
 	"github.com/bufbuild/connect-go"
 	"github.com/golang/mock/gomock"
 	"github.com/open-feature/flagd/core/pkg/eval"
 	mock "github.com/open-feature/flagd/core/pkg/eval/mock"
 	"github.com/open-feature/flagd/core/pkg/logger"
 	"github.com/open-feature/flagd/core/pkg/model"
-	service "github.com/open-feature/flagd/core/pkg/service"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/structpb"
+	"reflect"
+	"testing"
 )
-
-func TestConnectService_UnixConnection(t *testing.T) {
-	type evalFields struct {
-		result  bool
-		variant string
-		reason  string
-		err     error
-	}
-
-	tests := []struct {
-		name       string
-		socketPath string
-		evalFields evalFields
-		req        *schemaV1.ResolveBooleanRequest
-		want       *schemaV1.ResolveBooleanResponse
-		wantErr    error
-	}{
-		{
-			name:       "happy path",
-			socketPath: "/tmp/flagd.sock",
-			evalFields: evalFields{
-				result:  true,
-				variant: "on",
-				reason:  model.DefaultReason,
-				err:     nil,
-			},
-			req: &schemaV1.ResolveBooleanRequest{
-				FlagKey: "myBoolFlag",
-				Context: &structpb.Struct{},
-			},
-			want: &schemaV1.ResolveBooleanResponse{
-				Value:   true,
-				Reason:  model.DefaultReason,
-				Variant: "on",
-			},
-			wantErr: nil,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			eval := mock.NewMockIEvaluator(ctrl)
-			eval.EXPECT().ResolveBooleanValue(gomock.Any(), tt.req.FlagKey, gomock.Any()).Return(
-				tt.evalFields.result,
-				tt.evalFields.variant,
-				tt.evalFields.reason,
-				tt.evalFields.err,
-			).AnyTimes()
-			svc := service.ConnectService{
-				ConnectServiceConfiguration: &service.ConnectServiceConfiguration{
-					ServerSocketPath: tt.socketPath,
-				},
-				Logger: logger.NewLogger(nil, false),
-			}
-			serveConf := service.Configuration{
-				ReadinessProbe: func() bool {
-					return true
-				},
-			}
-			ctx := context.Background()
-			ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-			defer cancel()
-
-			go func() {
-				err := svc.Serve(ctx, eval, serveConf)
-				fmt.Println(err)
-			}()
-			conn, err := grpc.Dial(
-				fmt.Sprintf("unix://%s", tt.socketPath),
-				grpc.WithTransportCredentials(insecure.NewCredentials()),
-				grpc.WithBlock(),
-				grpc.WithTimeout(2*time.Second),
-			)
-			if err != nil {
-				t.Errorf("grpc - fail to dial: %v", err)
-				return
-			}
-			client := schemaGrpcV1.NewServiceClient(
-				conn,
-			)
-
-			res, err := client.ResolveBoolean(ctx, tt.req)
-			if (err != nil) && !errors.Is(err, tt.wantErr) {
-				t.Errorf("ConnectService.ResolveBoolean() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if !reflect.DeepEqual(res.Reason, tt.want.Reason) {
-				t.Errorf("ConnectService.ResolveBoolean() = %v, want %v", res, tt.want)
-			}
-			if !reflect.DeepEqual(res.Value, tt.want.Value) {
-				t.Errorf("ConnectService.ResolveBoolean() = %v, want %v", res, tt.want)
-			}
-			if !reflect.DeepEqual(res.Variant, tt.want.Variant) {
-				t.Errorf("ConnectService.ResolveBoolean() = %v, want %v", res, tt.want)
-			}
-		})
-	}
-}
 
 func TestConnectService_ResolveAll(t *testing.T) {
 	tests := map[string]struct {
@@ -146,6 +42,12 @@ func TestConnectService_ResolveAll(t *testing.T) {
 					Variant: "string",
 					Reason:  "string",
 					FlagKey: "string",
+				},
+				{
+					Value:   "hello",
+					Variant: "object",
+					Reason:  "string",
+					FlagKey: "object",
 				},
 			},
 			wantErr: nil,
@@ -180,10 +82,11 @@ func TestConnectService_ResolveAll(t *testing.T) {
 			eval.EXPECT().ResolveAllValues(gomock.Any(), gomock.Any()).Return(
 				tt.evalRes,
 			).AnyTimes()
-			s := service.ConnectService{
-				Eval:   eval,
-				Logger: logger.NewLogger(nil, false),
-			}
+			s := NewFlagEvaluationService(
+				logger.NewLogger(nil, false),
+				eval,
+				nil,
+			)
 			got, err := s.ResolveAll(context.Background(), connect.NewRequest(tt.req))
 			if err != nil && !errors.Is(err, tt.wantErr) {
 				t.Errorf("ConnectService.ResolveAll() error = %v, wantErr %v", err.Error(), tt.wantErr.Error())
@@ -194,17 +97,17 @@ func TestConnectService_ResolveAll(t *testing.T) {
 				case bool:
 					val := got.Msg.Flags[flag.FlagKey].Value.(*schemaV1.AnyFlag_BoolValue)
 					if v != val.BoolValue {
-						t.Errorf("ConnectService.ResolveAll(), key %s = %v, want %v", flag.FlagKey, val.BoolValue, v)
+						t.Errorf("Flag_Evaluation.ResolveAll(), key %s = %v, want %v", flag.FlagKey, val.BoolValue, v)
 					}
 				case string:
 					val := got.Msg.Flags[flag.FlagKey].Value.(*schemaV1.AnyFlag_StringValue)
 					if v != val.StringValue {
-						t.Errorf("ConnectService.ResolveAll(), key %s = %s, want %s", flag.FlagKey, val.StringValue, v)
+						t.Errorf("Flag_Evaluation.ResolveAll(), key %s = %s, want %s", flag.FlagKey, val.StringValue, v)
 					}
 				case float64:
 					val := got.Msg.Flags[flag.FlagKey].Value.(*schemaV1.AnyFlag_DoubleValue)
 					if v != val.DoubleValue {
-						t.Errorf("ConnectService.ResolveAll(), key %s = %f, want %f", flag.FlagKey, val.DoubleValue, v)
+						t.Errorf("Flag_Evaluation.ResolveAll(), key %s = %f, want %f", flag.FlagKey, val.DoubleValue, v)
 					}
 				}
 			}
@@ -228,7 +131,7 @@ type resolveBooleanEvalFields struct {
 	reason  string
 }
 
-func TestConnectService_ResolveBoolean(t *testing.T) {
+func TestFlag_Evaluation_ResolveBoolean(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	tests := map[string]resolveBooleanArgs{
 		"happy path": {
@@ -281,23 +184,24 @@ func TestConnectService_ResolveBoolean(t *testing.T) {
 				tt.evalFields.reason,
 				tt.wantErr,
 			).AnyTimes()
-			s := service.ConnectService{
-				Eval:   eval,
-				Logger: logger.NewLogger(nil, false),
-			}
+			s := NewFlagEvaluationService(
+				logger.NewLogger(nil, false),
+				eval,
+				nil,
+			)
 			got, err := s.ResolveBoolean(tt.functionArgs.ctx, connect.NewRequest(tt.functionArgs.req))
 			if err != nil && !errors.Is(err, tt.wantErr) {
-				t.Errorf("ConnectService.ResolveBoolean() error = %v, wantErr %v", err.Error(), tt.wantErr.Error())
+				t.Errorf("Flag_Evaluation.ResolveBoolean() error = %v, wantErr %v", err.Error(), tt.wantErr.Error())
 				return
 			}
 			if !reflect.DeepEqual(got.Msg, tt.want) {
-				t.Errorf("ConnectService.ResolveBoolean() = %v, want %v", got, tt.want)
+				t.Errorf("Flag_Evaluation.ResolveBoolean() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func BenchmarkConnectService_ResolveBoolean(b *testing.B) {
+func BenchmarkFlag_Evaluation_ResolveBoolean(b *testing.B) {
 	ctrl := gomock.NewController(b)
 	tests := map[string]resolveBooleanArgs{
 		"happy path": {
@@ -329,19 +233,20 @@ func BenchmarkConnectService_ResolveBoolean(b *testing.B) {
 			tt.evalFields.reason,
 			tt.wantErr,
 		).AnyTimes()
-		s := service.ConnectService{
-			Eval:   eval,
-			Logger: logger.NewLogger(nil, false),
-		}
+		s := NewFlagEvaluationService(
+			logger.NewLogger(nil, false),
+			eval,
+			nil,
+		)
 		b.Run(name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				got, err := s.ResolveBoolean(tt.functionArgs.ctx, connect.NewRequest(tt.functionArgs.req))
 				if (err != nil) && !errors.Is(err, tt.wantErr) {
-					b.Errorf("ConnectService.ResolveBoolean() error = %v, wantErr %v", err, tt.wantErr)
+					b.Errorf("Flag_Evaluation.ResolveBoolean() error = %v, wantErr %v", err, tt.wantErr)
 					return
 				}
 				if !reflect.DeepEqual(got.Msg, tt.want) {
-					b.Errorf("ConnectService.ResolveBoolean() = %v, want %v", got, tt.want)
+					b.Errorf("Flag_Evaluation.ResolveBoolean() = %v, want %v", got, tt.want)
 				}
 			}
 		})
@@ -364,7 +269,7 @@ type resolveStringEvalFields struct {
 	reason  string
 }
 
-func TestConnectService_ResolveString(t *testing.T) {
+func TestFlag_Evaluation_ResolveString(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	tests := map[string]resolveStringArgs{
 		"happy path": {
@@ -417,23 +322,24 @@ func TestConnectService_ResolveString(t *testing.T) {
 				tt.evalFields.reason,
 				tt.wantErr,
 			)
-			s := service.ConnectService{
-				Eval:   eval,
-				Logger: logger.NewLogger(nil, false),
-			}
+			s := NewFlagEvaluationService(
+				logger.NewLogger(nil, false),
+				eval,
+				nil,
+			)
 			got, err := s.ResolveString(tt.functionArgs.ctx, connect.NewRequest(tt.functionArgs.req))
 			if (err != nil) && !errors.Is(err, tt.wantErr) {
-				t.Errorf("ConnectService.ResolveString() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Flag_Evaluation.ResolveString() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got.Msg, tt.want) {
-				t.Errorf("ConnectService.ResolveString() = %v, want %v", got, tt.want)
+				t.Errorf("Flag_Evaluation.ResolveString() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func BenchmarkConnectService_ResolveString(b *testing.B) {
+func BenchmarkFlag_Evaluation_ResolveString(b *testing.B) {
 	ctrl := gomock.NewController(b)
 	tests := map[string]resolveStringArgs{
 		"happy path": {
@@ -466,19 +372,20 @@ func BenchmarkConnectService_ResolveString(b *testing.B) {
 			tt.wantErr,
 		).AnyTimes()
 
-		s := service.ConnectService{
-			Eval:   eval,
-			Logger: logger.NewLogger(nil, false),
-		}
+		s := NewFlagEvaluationService(
+			logger.NewLogger(nil, false),
+			eval,
+			nil,
+		)
 		b.Run(name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				got, err := s.ResolveString(tt.functionArgs.ctx, connect.NewRequest(tt.functionArgs.req))
 				if (err != nil) && !errors.Is(err, tt.wantErr) {
-					b.Errorf("ConnectService.ResolveString() error = %v, wantErr %v", err, tt.wantErr)
+					b.Errorf("Flag_Evaluation.ResolveString() error = %v, wantErr %v", err, tt.wantErr)
 					return
 				}
 				if !reflect.DeepEqual(got.Msg, tt.want) {
-					b.Errorf("ConnectService.ResolveString() = %v, want %v", got, tt.want)
+					b.Errorf("Flag_Evaluation.ResolveString() = %v, want %v", got, tt.want)
 				}
 			}
 		})
@@ -501,7 +408,7 @@ type resolveFloatEvalFields struct {
 	reason  string
 }
 
-func TestConnectService_ResolveFloat(t *testing.T) {
+func TestFlag_Evaluation_ResolveFloat(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	tests := map[string]resolveFloatArgs{
 		"happy path": {
@@ -554,23 +461,24 @@ func TestConnectService_ResolveFloat(t *testing.T) {
 				tt.evalFields.reason,
 				tt.wantErr,
 			).AnyTimes()
-			s := service.ConnectService{
-				Eval:   eval,
-				Logger: logger.NewLogger(nil, false),
-			}
+			s := NewFlagEvaluationService(
+				logger.NewLogger(nil, false),
+				eval,
+				nil,
+			)
 			got, err := s.ResolveFloat(tt.functionArgs.ctx, connect.NewRequest(tt.functionArgs.req))
 			if (err != nil) && !errors.Is(err, tt.wantErr) {
-				t.Errorf("ConnectService.ResolveNumber() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Flag_Evaluation.ResolveNumber() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got.Msg, tt.want) {
-				t.Errorf("ConnectService.ResolveNumber() = %v, want %v", got, tt.want)
+				t.Errorf("Flag_Evaluation.ResolveNumber() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func BenchmarkConnectService_ResolveFloat(b *testing.B) {
+func BenchmarkFlag_Evaluation_ResolveFloat(b *testing.B) {
 	ctrl := gomock.NewController(b)
 	tests := map[string]resolveFloatArgs{
 		"happy path": {
@@ -603,19 +511,20 @@ func BenchmarkConnectService_ResolveFloat(b *testing.B) {
 			tt.wantErr,
 		).AnyTimes()
 
-		s := service.ConnectService{
-			Eval:   eval,
-			Logger: logger.NewLogger(nil, false),
-		}
+		s := NewFlagEvaluationService(
+			logger.NewLogger(nil, false),
+			eval,
+			nil,
+		)
 		b.Run(name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				got, err := s.ResolveFloat(tt.functionArgs.ctx, connect.NewRequest(tt.functionArgs.req))
 				if (err != nil) && !errors.Is(err, tt.wantErr) {
-					b.Errorf("ConnectService.ResolveNumber() error = %v, wantErr %v", err, tt.wantErr)
+					b.Errorf("Flag_Evaluation.ResolveNumber() error = %v, wantErr %v", err, tt.wantErr)
 					return
 				}
 				if !reflect.DeepEqual(got.Msg, tt.want) {
-					b.Errorf("ConnectService.ResolveNumber() = %v, want %v", got, tt.want)
+					b.Errorf("Flag_Evaluation.ResolveNumber() = %v, want %v", got, tt.want)
 				}
 			}
 		})
@@ -638,7 +547,7 @@ type resolveIntEvalFields struct {
 	reason  string
 }
 
-func TestConnectService_ResolveInt(t *testing.T) {
+func TestFlag_Evaluation_ResolveInt(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	tests := map[string]resolveIntArgs{
 		"happy path": {
@@ -691,23 +600,24 @@ func TestConnectService_ResolveInt(t *testing.T) {
 				tt.evalFields.reason,
 				tt.wantErr,
 			).AnyTimes()
-			s := service.ConnectService{
-				Eval:   eval,
-				Logger: logger.NewLogger(nil, false),
-			}
+			s := NewFlagEvaluationService(
+				logger.NewLogger(nil, false),
+				eval,
+				nil,
+			)
 			got, err := s.ResolveInt(tt.functionArgs.ctx, connect.NewRequest(tt.functionArgs.req))
 			if (err != nil) && !errors.Is(err, tt.wantErr) {
-				t.Errorf("ConnectService.ResolveNumber() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Flag_Evaluation.ResolveNumber() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got.Msg, tt.want) {
-				t.Errorf("ConnectService.ResolveNumber() = %v, want %v", got, tt.want)
+				t.Errorf("Flag_Evaluation.ResolveNumber() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func BenchmarkConnectService_ResolveInt(b *testing.B) {
+func BenchmarkFlag_Evaluation_ResolveInt(b *testing.B) {
 	ctrl := gomock.NewController(b)
 	tests := map[string]resolveIntArgs{
 		"happy path": {
@@ -740,19 +650,20 @@ func BenchmarkConnectService_ResolveInt(b *testing.B) {
 			tt.wantErr,
 		).AnyTimes()
 
-		s := service.ConnectService{
-			Eval:   eval,
-			Logger: logger.NewLogger(nil, false),
-		}
+		s := NewFlagEvaluationService(
+			logger.NewLogger(nil, false),
+			eval,
+			nil,
+		)
 		b.Run(name, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				got, err := s.ResolveInt(tt.functionArgs.ctx, connect.NewRequest(tt.functionArgs.req))
 				if (err != nil) && !errors.Is(err, tt.wantErr) {
-					b.Errorf("ConnectService.ResolveNumber() error = %v, wantErr %v", err, tt.wantErr)
+					b.Errorf("Flag_Evaluation.ResolveNumber() error = %v, wantErr %v", err, tt.wantErr)
 					return
 				}
 				if !reflect.DeepEqual(got.Msg, tt.want) {
-					b.Errorf("ConnectService.ResolveNumber() = %v, want %v", got, tt.want)
+					b.Errorf("Flag_Evaluation.ResolveNumber() = %v, want %v", got, tt.want)
 				}
 			}
 		})
@@ -775,7 +686,7 @@ type resolveObjectEvalFields struct {
 	reason  string
 }
 
-func TestConnectService_ResolveObject(t *testing.T) {
+func TestFlag_Evaluation_ResolveObject(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	tests := map[string]resolveObjectArgs{
 		"happy path": {
@@ -831,10 +742,11 @@ func TestConnectService_ResolveObject(t *testing.T) {
 				tt.evalFields.reason,
 				tt.wantErr,
 			).AnyTimes()
-			s := service.ConnectService{
-				Eval:   eval,
-				Logger: logger.NewLogger(nil, false),
-			}
+			s := NewFlagEvaluationService(
+				logger.NewLogger(nil, false),
+				eval,
+				nil,
+			)
 
 			outParsed, err := structpb.NewStruct(tt.evalFields.result)
 			if err != nil {
@@ -843,17 +755,17 @@ func TestConnectService_ResolveObject(t *testing.T) {
 			tt.want.Value = outParsed
 			got, err := s.ResolveObject(tt.functionArgs.ctx, connect.NewRequest(tt.functionArgs.req))
 			if (err != nil) && !errors.Is(err, tt.wantErr) {
-				t.Errorf("ConnectService.ResolveObject() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Flag_Evaluation.ResolveObject() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got.Msg.Value.AsMap(), tt.want.Value.AsMap()) {
-				t.Errorf("ConnectService.ResolveObject() = %v, want %v", got, tt.want)
+				t.Errorf("Flag_Evaluation.ResolveObject() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func BenchmarkConnectService_ResolveObject(b *testing.B) {
+func BenchmarkFlag_Evaluation_ResolveObject(b *testing.B) {
 	ctrl := gomock.NewController(b)
 	tests := map[string]resolveObjectArgs{
 		"happy path": {
@@ -888,10 +800,11 @@ func BenchmarkConnectService_ResolveObject(b *testing.B) {
 			tt.wantErr,
 		).AnyTimes()
 
-		s := service.ConnectService{
-			Eval:   eval,
-			Logger: logger.NewLogger(nil, false),
-		}
+		s := NewFlagEvaluationService(
+			logger.NewLogger(nil, false),
+			eval,
+			nil,
+		)
 		if name != "eval returns error" {
 			outParsed, err := structpb.NewStruct(tt.evalFields.result)
 			if err != nil {
@@ -903,11 +816,11 @@ func BenchmarkConnectService_ResolveObject(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				got, err := s.ResolveObject(tt.functionArgs.ctx, connect.NewRequest(tt.functionArgs.req))
 				if (err != nil) && !errors.Is(err, tt.wantErr) {
-					b.Errorf("ConnectService.ResolveObject() error = %v, wantErr %v", err, tt.wantErr)
+					b.Errorf("Flag_Evaluation.ResolveObject() error = %v, wantErr %v", err, tt.wantErr)
 					return
 				}
 				if !reflect.DeepEqual(got.Msg.Value.AsMap(), tt.want.Value.AsMap()) {
-					b.Errorf("ConnectService.ResolveObject() = %v, want %v", got, tt.want)
+					b.Errorf("Flag_Evaluation.ResolveObject() = %v, want %v", got, tt.want)
 				}
 			}
 		})
