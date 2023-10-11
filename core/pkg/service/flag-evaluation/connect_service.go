@@ -16,6 +16,7 @@ import (
 
 	"github.com/open-feature/flagd/core/pkg/service/middleware"
 
+	flagdGrpcEvaluationV1 "buf.build/gen/go/bacherfl/flagd/connectrpc/go/flagd/evaluation/v1/evaluationv1connect"
 	schemaConnectV1 "buf.build/gen/go/open-feature/flagd/bufbuild/connect-go/schema/v1/schemav1connect"
 	"github.com/open-feature/flagd/core/pkg/eval"
 	"github.com/open-feature/flagd/core/pkg/logger"
@@ -118,6 +119,10 @@ func (s *ConnectService) setupServer(svcConf service.Configuration) (net.Listene
 	)
 	path, handler := schemaConnectV1.NewServiceHandler(fes, svcConf.Options...)
 	mux.Handle(path, handler)
+
+	newFes := NewFlagEvaluationService2(fes)
+	newPath, newHandler := flagdGrpcEvaluationV1.NewServiceHandler(newFes)
+	mux.Handle(newPath, newHandler)
 
 	s.serverMtx.Lock()
 	s.server = &http.Server{

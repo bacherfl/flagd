@@ -13,7 +13,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	msdk "go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/metric/aggregation"
 	semconv "go.opentelemetry.io/otel/semconv/v1.18.0"
 )
 
@@ -97,7 +96,7 @@ func getDurationView(svcName, viewName string, bucket []float64) msdk.View {
 				Name: svcName,
 			},
 		},
-		msdk.Stream{Aggregation: aggregation.ExplicitBucketHistogram{
+		msdk.Stream{Aggregation: msdk.AggregationExplicitBucketHistogram{
 			Boundaries: bucket,
 		}},
 	)
