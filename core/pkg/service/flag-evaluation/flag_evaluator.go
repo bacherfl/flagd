@@ -2,7 +2,7 @@ package service
 
 import (
 	evalV1 "buf.build/gen/go/bacherfl/flagd/protocolbuffers/go/flagd/evaluation/v1"
-	connect2 "connectrpc.com/connect"
+	"connectrpc.com/connect"
 	"context"
 	"fmt"
 	"time"
@@ -14,7 +14,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	schemaV1 "buf.build/gen/go/open-feature/flagd/protocolbuffers/go/schema/v1"
-	"github.com/bufbuild/connect-go"
 	"github.com/open-feature/flagd/core/pkg/eval"
 	"github.com/open-feature/flagd/core/pkg/logger"
 	"github.com/open-feature/flagd/core/pkg/model"
@@ -29,7 +28,7 @@ type FlagEvaluationServiceV2 struct {
 	*FlagEvaluationService
 }
 
-// NewFlagEvaluationService creates a FlagEvaluationService with provided parameters
+// NewFlagEvaluationService2 creates a FlagEvaluationService with provided parameters
 func NewFlagEvaluationService2(evaluationService *FlagEvaluationService) *FlagEvaluationServiceV2 {
 	return &FlagEvaluationServiceV2{
 		FlagEvaluationService: evaluationService,
@@ -38,8 +37,8 @@ func NewFlagEvaluationService2(evaluationService *FlagEvaluationService) *FlagEv
 
 func (s *FlagEvaluationServiceV2) ResolveAll(
 	ctx context.Context,
-	req *connect2.Request[evalV1.ResolveAllRequest],
-) (*connect2.Response[evalV1.ResolveAllResponse], error) {
+	req *connect.Request[evalV1.ResolveAllRequest],
+) (*connect.Response[evalV1.ResolveAllResponse], error) {
 	reqID := xid.New().String()
 	defer s.logger.ClearFields(reqID)
 
@@ -94,13 +93,13 @@ func (s *FlagEvaluationServiceV2) ResolveAll(
 			}
 		}
 	}
-	return connect2.NewResponse(res), nil
+	return connect.NewResponse(res), nil
 }
 
 func (s *FlagEvaluationServiceV2) EventStream(
 	ctx context.Context,
-	req *connect2.Request[evalV1.EventStreamRequest],
-	stream *connect2.ServerStream[evalV1.EventStreamResponse],
+	req *connect.Request[evalV1.EventStreamRequest],
+	stream *connect.ServerStream[evalV1.EventStreamResponse],
 ) error {
 	requestNotificationChan := make(chan service.Notification, 1)
 	s.eventingConfiguration.subscribe(req, requestNotificationChan)
@@ -138,11 +137,11 @@ func (s *FlagEvaluationServiceV2) EventStream(
 
 func (s *FlagEvaluationServiceV2) ResolveBoolean(
 	ctx context.Context,
-	req *connect2.Request[evalV1.ResolveBooleanRequest],
-) (*connect2.Response[evalV1.ResolveBooleanResponse], error) {
+	req *connect.Request[evalV1.ResolveBooleanRequest],
+) (*connect.Response[evalV1.ResolveBooleanResponse], error) {
 	sCtx, span := s.flagEvalTracer.Start(ctx, "resolveBoolean", trace.WithSpanKind(trace.SpanKindServer))
 	defer span.End()
-	res := connect2.NewResponse(&evalV1.ResolveBooleanResponse{})
+	res := connect.NewResponse(&evalV1.ResolveBooleanResponse{})
 	err := resolve[bool](
 		sCtx,
 		s.logger,
@@ -162,12 +161,12 @@ func (s *FlagEvaluationServiceV2) ResolveBoolean(
 
 func (s *FlagEvaluationServiceV2) ResolveString(
 	ctx context.Context,
-	req *connect2.Request[evalV1.ResolveStringRequest],
-) (*connect2.Response[evalV1.ResolveStringResponse], error) {
+	req *connect.Request[evalV1.ResolveStringRequest],
+) (*connect.Response[evalV1.ResolveStringResponse], error) {
 	sCtx, span := s.flagEvalTracer.Start(ctx, "resolveString", trace.WithSpanKind(trace.SpanKindServer))
 	defer span.End()
 
-	res := connect2.NewResponse(&evalV1.ResolveStringResponse{})
+	res := connect.NewResponse(&evalV1.ResolveStringResponse{})
 	err := resolve[string](
 		sCtx,
 		s.logger,
@@ -187,12 +186,12 @@ func (s *FlagEvaluationServiceV2) ResolveString(
 
 func (s *FlagEvaluationServiceV2) ResolveInt(
 	ctx context.Context,
-	req *connect2.Request[evalV1.ResolveIntRequest],
-) (*connect2.Response[evalV1.ResolveIntResponse], error) {
+	req *connect.Request[evalV1.ResolveIntRequest],
+) (*connect.Response[evalV1.ResolveIntResponse], error) {
 	sCtx, span := s.flagEvalTracer.Start(ctx, "resolveInt", trace.WithSpanKind(trace.SpanKindServer))
 	defer span.End()
 
-	res := connect2.NewResponse(&evalV1.ResolveIntResponse{})
+	res := connect.NewResponse(&evalV1.ResolveIntResponse{})
 	err := resolve[int64](
 		sCtx,
 		s.logger,
@@ -212,12 +211,12 @@ func (s *FlagEvaluationServiceV2) ResolveInt(
 
 func (s *FlagEvaluationServiceV2) ResolveFloat(
 	ctx context.Context,
-	req *connect2.Request[evalV1.ResolveFloatRequest],
-) (*connect2.Response[evalV1.ResolveFloatResponse], error) {
+	req *connect.Request[evalV1.ResolveFloatRequest],
+) (*connect.Response[evalV1.ResolveFloatResponse], error) {
 	sCtx, span := s.flagEvalTracer.Start(ctx, "resolveFloat", trace.WithSpanKind(trace.SpanKindServer))
 	defer span.End()
 
-	res := connect2.NewResponse(&evalV1.ResolveFloatResponse{})
+	res := connect.NewResponse(&evalV1.ResolveFloatResponse{})
 	err := resolve[float64](
 		sCtx,
 		s.logger,
@@ -237,12 +236,12 @@ func (s *FlagEvaluationServiceV2) ResolveFloat(
 
 func (s *FlagEvaluationServiceV2) ResolveObject(
 	ctx context.Context,
-	req *connect2.Request[evalV1.ResolveObjectRequest],
-) (*connect2.Response[evalV1.ResolveObjectResponse], error) {
+	req *connect.Request[evalV1.ResolveObjectRequest],
+) (*connect.Response[evalV1.ResolveObjectResponse], error) {
 	sCtx, span := s.flagEvalTracer.Start(ctx, "resolveObject", trace.WithSpanKind(trace.SpanKindServer))
 	defer span.End()
 
-	res := connect2.NewResponse(&evalV1.ResolveObjectResponse{})
+	res := connect.NewResponse(&evalV1.ResolveObjectResponse{})
 	err := resolve[map[string]any](
 		sCtx,
 		s.logger,

@@ -2,11 +2,10 @@ package service
 
 import (
 	evalV1 "buf.build/gen/go/bacherfl/flagd/protocolbuffers/go/flagd/evaluation/v1"
-	connect2 "connectrpc.com/connect"
+	"connectrpc.com/connect"
 	"fmt"
 
 	schemaV1 "buf.build/gen/go/open-feature/flagd/protocolbuffers/go/schema/v1"
-	"github.com/bufbuild/connect-go"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -20,7 +19,7 @@ type constraints interface {
 
 type booleanResponse struct {
 	schemaV1Resp *connect.Response[schemaV1.ResolveBooleanResponse]
-	evalV1Resp   *connect2.Response[evalV1.ResolveBooleanResponse]
+	evalV1Resp   *connect.Response[evalV1.ResolveBooleanResponse]
 }
 
 func (r *booleanResponse) SetResult(value bool, variant, reason string) error {
@@ -40,7 +39,7 @@ func (r *booleanResponse) SetResult(value bool, variant, reason string) error {
 
 type stringResponse struct {
 	schemaV1Resp *connect.Response[schemaV1.ResolveStringResponse]
-	evalV1Resp   *connect2.Response[evalV1.ResolveStringResponse]
+	evalV1Resp   *connect.Response[evalV1.ResolveStringResponse]
 }
 
 func (r *stringResponse) SetResult(value, variant, reason string) error {
@@ -59,7 +58,7 @@ func (r *stringResponse) SetResult(value, variant, reason string) error {
 
 type floatResponse struct {
 	schemaV1Resp *connect.Response[schemaV1.ResolveFloatResponse]
-	evalV1Resp   *connect2.Response[evalV1.ResolveFloatResponse]
+	evalV1Resp   *connect.Response[evalV1.ResolveFloatResponse]
 }
 
 func (r *floatResponse) SetResult(value float64, variant, reason string) error {
@@ -78,7 +77,7 @@ func (r *floatResponse) SetResult(value float64, variant, reason string) error {
 
 type intResponse struct {
 	schemaV1Resp *connect.Response[schemaV1.ResolveIntResponse]
-	evalV1Resp   *connect2.Response[evalV1.ResolveIntResponse]
+	evalV1Resp   *connect.Response[evalV1.ResolveIntResponse]
 }
 
 func (r *intResponse) SetResult(value int64, variant, reason string) error {
@@ -97,7 +96,7 @@ func (r *intResponse) SetResult(value int64, variant, reason string) error {
 
 type objectResponse struct {
 	schemaV1Resp *connect.Response[schemaV1.ResolveObjectResponse]
-	evalV1Resp   *connect2.Response[evalV1.ResolveObjectResponse]
+	evalV1Resp   *connect.Response[evalV1.ResolveObjectResponse]
 }
 
 func (r *objectResponse) SetResult(value map[string]any, variant, reason string) error {

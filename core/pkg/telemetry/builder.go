@@ -1,15 +1,12 @@
 package telemetry
 
 import (
-	connect2 "connectrpc.com/connect"
+	"connectrpc.com/connect"
 	"context"
 	"fmt"
 	"time"
 
-	otelconnect2 "connectrpc.com/otelconnect"
-	"github.com/bufbuild/connect-go"
-	otelconnect "github.com/bufbuild/connect-opentelemetry-go"
-
+	"connectrpc.com/otelconnect"
 	"go.opentelemetry.io/otel/propagation"
 
 	"github.com/open-feature/flagd/core/pkg/logger"
@@ -96,20 +93,6 @@ func BuildConnectOptions(cfg Config) []connect.HandlerOption {
 	if cfg.CollectorTarget != "" {
 		options = append(options, connect.WithInterceptors(
 			otelconnect.NewInterceptor(otelconnect.WithTrustRemote()),
-		))
-	}
-
-	return options
-}
-
-// BuildConnect2Options is a helper to build connect options based on telemetry configurations
-func BuildConnect2Options(cfg Config) []connect2.HandlerOption {
-	options := []connect2.HandlerOption{}
-
-	// add interceptor if configuration is available for collector
-	if cfg.CollectorTarget != "" {
-		options = append(options, connect2.WithInterceptors(
-			otelconnect2.NewInterceptor(otelconnect2.WithTrustRemote()),
 		))
 	}
 

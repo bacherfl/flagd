@@ -2,11 +2,13 @@
 package service
 
 import (
+	schemaConnectV1 "buf.build/gen/go/open-feature/flagd/connectrpc/go/schema/v1/schemav1connect"
 	"context"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,8 +18,7 @@ import (
 
 	"github.com/open-feature/flagd/core/pkg/service/middleware"
 
-	flagdGrpcEvaluationV1 "buf.build/gen/go/bacherfl/flagd/connectrpc/go/flagd/evaluation/v1/evaluationv1connect"
-	schemaConnectV1 "buf.build/gen/go/open-feature/flagd/bufbuild/connect-go/schema/v1/schemav1connect"
+	evaluationV1 "buf.build/gen/go/bacherfl/flagd/connectrpc/go/flagd/evaluation/v1/evaluationv1connect"
 	"github.com/open-feature/flagd/core/pkg/eval"
 	"github.com/open-feature/flagd/core/pkg/logger"
 	"github.com/open-feature/flagd/core/pkg/service"
@@ -29,6 +30,19 @@ import (
 )
 
 const ErrorPrefix = "FlagdError:"
+
+type bufSwitchHandler struct {
+	old http.Handler
+	new http.Handler
+}
+
+func (b bufSwitchHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	if strings.HasPrefix(request.URL.Path, "/flagd") {
+		b.new.ServeHTTP(writer, request)
+	} else {
+		b.old.ServeHTTP(writer, request)
+	}
+}
 
 type ConnectService struct {
 	logger                *logger.Logger
@@ -121,13 +135,17 @@ func (s *ConnectService) setupServer(svcConf service.Configuration) (net.Listene
 	mux.Handle(path, handler)
 
 	newFes := NewFlagEvaluationService2(fes)
-	newPath, newHandler := flagdGrpcEvaluationV1.NewServiceHandler(newFes)
+	newPath, newHandler := evaluationV1.NewServiceHandler(newFes, svcConf.Options...)
 	mux.Handle(newPath, newHandler)
 
+	bs := bufSwitchHandler{
+		old: handler,
+		new: newHandler,
+	}
 	s.serverMtx.Lock()
 	s.server = &http.Server{
 		ReadHeaderTimeout: time.Second,
-		Handler:           handler,
+		Handler:           bs,
 	}
 	s.serverMtx.Unlock()
 

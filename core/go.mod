@@ -5,9 +5,9 @@ go 1.19
 require (
 	buf.build/gen/go/bacherfl/flagd/connectrpc/go v1.11.1-20231011083819-ebe3c42ffa92.1
 	buf.build/gen/go/bacherfl/flagd/protocolbuffers/go v1.31.0-20231011083819-ebe3c42ffa92.1
-	buf.build/gen/go/open-feature/flagd/bufbuild/connect-go v1.5.2-20230222100723-491ee098dd92.1
+	buf.build/gen/go/open-feature/flagd/connectrpc/go v1.11.1-20231002171355-0601ac335d9b.1
 	buf.build/gen/go/open-feature/flagd/grpc/go v1.3.0-20230317150644-afd1cc2ef580.1
-	buf.build/gen/go/open-feature/flagd/protocolbuffers/go v1.29.1-20230317150644-afd1cc2ef580.1
+	buf.build/gen/go/open-feature/flagd/protocolbuffers/go v1.31.0-20231002171355-0601ac335d9b.1
 	connectrpc.com/connect v1.11.1
 	connectrpc.com/otelconnect v0.6.0
 	github.com/bufbuild/connect-go v1.8.0
@@ -15,7 +15,6 @@ require (
 	github.com/diegoholiveira/jsonlogic/v3 v3.2.7
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/golang/mock v1.6.0
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0
 	github.com/open-feature/open-feature-operator v0.2.34
 	github.com/open-feature/schemas v0.2.8
 	github.com/prometheus/client_golang v1.16.0
@@ -70,6 +69,7 @@ require (
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0 // indirect
 	github.com/huandu/xstrings v1.4.0 // indirect
 	github.com/imdario/mergo v0.3.13 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
