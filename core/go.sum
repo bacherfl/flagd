@@ -1,5 +1,8 @@
 buf.build/gen/go/bacherfl/flagd/connectrpc/go v1.11.1-20231011083819-ebe3c42ffa92.1 h1:ptZ7cKTWQCLbBvl5lyWdCZlOIBXTB8j31g6y8qIOszs=
 buf.build/gen/go/bacherfl/flagd/connectrpc/go v1.11.1-20231011083819-ebe3c42ffa92.1/go.mod h1:R+7dq/jL5SOuuWeC0xMZyuqyGiI73d7ddDoS7Gemj6E=
+buf.build/gen/go/bacherfl/flagd/grpc/go v1.3.0-20231011083819-ebe3c42ffa92.1 h1:HaUvUnIRBwdWUxYPAAPFiVHTOOHsTUFK5SWzjeND/wU=
+buf.build/gen/go/bacherfl/flagd/grpc/go v1.3.0-20231011083819-ebe3c42ffa92.1/go.mod h1:Gjaelq1eJXUMXokSRbjiua3ynpU9NI/piYxfDTQqu/Y=
+buf.build/gen/go/bacherfl/flagd/protocolbuffers/go v1.28.1-20231011083819-ebe3c42ffa92.4/go.mod h1:uqcj3drstIEHCbwPgHXjDqyLAS7qDWt6wTrxCiEwAsI=
 buf.build/gen/go/bacherfl/flagd/protocolbuffers/go v1.31.0-20231011083819-ebe3c42ffa92.1 h1:m43crsEoCaZVl0RdYWBf94uUGxSr1b82ib68d+VMZ1c=
 buf.build/gen/go/bacherfl/flagd/protocolbuffers/go v1.31.0-20231011083819-ebe3c42ffa92.1/go.mod h1:vfRDMdqvrwTRcHrjFt8dJMsZ49J+mv5eVRUpuqh+hRY=
 buf.build/gen/go/grpc-ecosystem/grpc-gateway/grpc/go v1.3.0-20220906183531-bc28b723cd77.1/go.mod h1:9Ec7rvBnjfZvU/TnWjtcSGgiLQ4B+U3B+6SnZgVTA7A=

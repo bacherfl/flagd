@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	syncv1 "buf.build/gen/go/bacherfl/flagd/grpc/go/flagd/sync/v1/syncv1grpc"
 	rpc "buf.build/gen/go/open-feature/flagd/grpc/go/sync/v1/syncv1grpc"
 	"github.com/open-feature/flagd/core/pkg/logger"
 	iservice "github.com/open-feature/flagd/core/pkg/service"
@@ -22,16 +23,23 @@ type Server struct {
 	metricsServer *http.Server
 	Logger        *logger.Logger
 	handler       *handler
+	newHandler    *newHandler
 	config        iservice.Configuration
 }
 
 func NewServer(logger *logger.Logger, store syncStore.ISyncStore) *Server {
+
+	theHandler := &handler{
+		logger:    logger,
+		syncStore: store,
+	}
+	theNewHandler := &newHandler{
+		oldHandler: theHandler,
+	}
 	return &Server{
-		handler: &handler{
-			logger:    logger,
-			syncStore: store,
-		},
-		Logger: logger,
+		handler:    theHandler,
+		newHandler: theNewHandler,
+		Logger:     logger,
 	}
 }
 
@@ -79,6 +87,8 @@ func (s *Server) startServer() error {
 	}
 	grpcServer := grpc.NewServer()
 	rpc.RegisterFlagSyncServiceServer(grpcServer, s.handler)
+
+	syncv1.RegisterFlagSyncServiceServer(grpcServer, s.newHandler)
 
 	if err := grpcServer.Serve(
 		lis,
